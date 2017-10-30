@@ -5,23 +5,18 @@ Aug 2016
 '''
 
 import math
-import time
 
 import numpy as np
-from numpy import array_repr
-from numpy.linalg import lstsq
-from numpy.testing import assert_array_almost_equal
 
 from scipy.sparse import csr_matrix
 
 from hylaa.glpk_interface import LpInstance
-from hylaa.hybrid_automaton import HyperRectangle, LinearAutomatonTransition
 from hylaa.hybrid_automaton import LinearAutomatonMode
-from hylaa.timerutil import Timers as Timers
 from hylaa.util import Freezable
-from hylaa.containers import PlotSettings, HylaaSettings, SimulationSettings
 from hylaa.time_elapse import TimeElapser
 from hylaa.guard_opt_data import GuardOptData
+from hylaa.containers import HylaaSettings, SimulationSettings
+
 
 class Star(Freezable):
     '''
@@ -77,7 +72,7 @@ class Star(Freezable):
         self._verts = None # for plotting optimization, a cached copy of this star's projected polygon verts
 
         self._guard_opt_data = []
-        
+
         for i in xrange(len(mode.transitions)):
             self._guard_opt_data.append(GuardOptData(self, mode, i))
 

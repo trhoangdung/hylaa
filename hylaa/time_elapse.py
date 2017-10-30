@@ -4,11 +4,10 @@ l * e^{At} where l is some direction of interest, and t is a multiple of some ti
 '''
 
 import sys
-import time
 
 import numpy as np
 
-from scipy.sparse import lil_matrix, csr_matrix, csc_matrix
+from scipy.sparse import csr_matrix, csc_matrix
 from scipy.sparse.linalg import expm, expm_multiply
 
 from hylaa.util import Freezable
@@ -16,7 +15,7 @@ from hylaa.hybrid_automaton import LinearAutomatonMode
 from hylaa.containers import HylaaSettings, PlotSettings, SimulationSettings
 from hylaa.timerutil import Timers
 from hylaa.time_elapse_krylov import make_cur_time_elapse_mat_list, compress_fixed
-from hylaa.krylov_interface import KrylovInterface
+
 
 class TimeElapser(Freezable):
     'Object which computes the time-elapse function for a single mode at multiples of the time step'
@@ -42,14 +41,14 @@ class TimeElapser(Freezable):
         self.inputs = 0 if mode.b_matrix is None else mode.b_matrix.shape[1]
 
         self.next_step = 0
-        self.key_dir_mat = None # csr_matrix
-        self.cur_time_elapse_mat = None # assigned on step()
-        self.cur_input_effects_matrix = None # assigned on step() if inputs exist
+        self.key_dir_mat = None  # csr_matrix
+        self.cur_time_elapse_mat = None  # assigned on step()
+        self.cur_input_effects_matrix = None  # assigned on step() if inputs exist
         self.cur_input_projection_matrix = None
 
         # used for certain simulation modes
-        self.one_step_matrix_exp = None # one step matrix exponential
-        self.one_step_input_effects_matrix = None # one step input effects matrix, if inputs exist
+        self.one_step_matrix_exp = None  # one step matrix exponential
+        self.one_step_input_effects_matrix = None  # one step input effects matrix, if inputs exist
 
         Timers.tic("extract key directions")
         self._extract_key_directions(mode)
@@ -88,7 +87,7 @@ class TimeElapser(Freezable):
         # a_mult_ms - time for multiplying a times cur_vec
         # a_mult_gflops - gflops for multiplying a times cur_vec
         #
-        self.stats = {} # performance statistics, map name -> value
+        self.stats = {}  # performance statistics, map name -> value
 
         self.freeze_attrs()
 
@@ -248,8 +247,8 @@ class TimeElapser(Freezable):
 
                 indptr = b.indptr
 
-                data = np.concatenate((a.data, b.data[indptr[c]:indptr[c+1]]))
-                indices = np.concatenate((a.indices, b.indices[indptr[c]:indptr[c+1]]))
+                data = np.concatenate((a.data, b.data[indptr[c]:indptr[c + 1]]))
+                indices = np.concatenate((a.indices, b.indices[indptr[c]:indptr[c + 1]]))
                 indptr = np.concatenate((a.indptr, [len(data)]))
 
                 aug_a_matrix = csc_matrix((data, indices, indptr), shape=(self.dims + 1, self.dims + 1))
@@ -306,7 +305,7 @@ class TimeElapser(Freezable):
         assert self.cur_time_elapse_mat.shape == cur_time_mat_shape, \
             "cur_time_elapse mat shape({}) should be {}".format(self.cur_time_elapse_mat.shape, cur_time_mat_shape)
 
-        if self.inputs == 0 or self.next_step == 1: # 0-th step input should be null
+        if self.inputs == 0 or self.next_step == 1:  # 0-th step input should be null
             assert self.cur_input_effects_matrix is None
         else:
             assert isinstance(self.cur_input_effects_matrix, np.ndarray)

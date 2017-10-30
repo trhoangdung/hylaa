@@ -12,6 +12,7 @@ from hylaa.engine import HylaaEngine
 from hylaa.containers import PlotSettings, SimulationSettings
 from hylaa.star import Star
 
+
 def define_ha():
     '''make the hybrid automaton'''
 
@@ -35,23 +36,23 @@ def define_ha():
 
     return ha
 
+
 def make_init_star(ha, hylaa_settings):
     '''returns a star'''
-
     rv = None
-    bounds_list = [] # bounds on each dimension
+    bounds_list = []  # bounds on each dimension
 
     for dim in xrange(ha.dims):
-        if dim == 0: # x == -5
+        if dim == 0:  # x == -5
             lb = -5.0
             ub = -5.0
-        elif dim == 1: # y in [0, 1]
+        elif dim == 1:  # y in [0, 1]
             lb = 0
             ub = 1
-        elif dim == 2: # t == 0
+        elif dim == 2:  # t == 0
             lb = 0
             ub = 0
-        elif dim == 3: # a == 1
+        elif dim == 3:  # a == 1
             lb = 1
             ub = 1
         else:
@@ -70,6 +71,7 @@ def make_init_star(ha, hylaa_settings):
 
     return rv
 
+
 def define_settings():
     'get the hylaa settings object'
     plot_settings = PlotSettings()
@@ -78,7 +80,7 @@ def define_settings():
     plot_settings.ydim_dir = 1
 
     # save a video file instead
-    #plot_settings.make_video("vid.mp4", frames=20, fps=5)
+    # plot_settings.make_video("vid.mp4", frames=20, fps=5)
 
     plot_settings.num_angles = 128
     plot_settings.max_shown_polys = 2048
@@ -93,9 +95,9 @@ def define_settings():
     plot_settings.extra_lines_color = 'red'
     plot_settings.extra_lines_width = 4
 
-    settings = HylaaSettings(step=math.pi/4, max_time=3 * math.pi / 4, plot_settings=plot_settings)
-    #settings.simulation.sim_mode = SimulationSettings.EXP_MULT
-    #settings.simulation.sim_mode = SimulationSettings.MATRIX_EXP
+    settings = HylaaSettings(step=math.pi / 4, max_time=3 * math.pi / 4, plot_settings=plot_settings)
+    # settings.simulation.sim_mode = SimulationSettings.EXP_MULT
+    # settings.simulation.sim_mode = SimulationSettings.MATRIX_EXP
 
     settings.simulation.guard_mode = SimulationSettings.GUARD_FULL_LP
     settings.simulation.sim_mode = SimulationSettings.KRYLOV
@@ -104,6 +106,7 @@ def define_settings():
     settings.simulation.check_answer = True
 
     return settings
+
 
 def run_hylaa(hylaa_settings):
     'Runs hylaa with the given settings, returning the HylaaResult object.'

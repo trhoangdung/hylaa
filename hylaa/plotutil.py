@@ -24,15 +24,18 @@ from hylaa.containers import PlotSettings
 from hylaa.util import Freezable
 from hylaa.glpk_interface import LpInstance
 
+
 def lighter(rgb_col):
     'return a lighter variant of an rgb color'
 
     return [(2.0 + val) / 3.0 for val in rgb_col]
 
+
 def darker(rgb_col):
     'return a darker variant of an rgb color'
 
     return [val / 1.2 for val in rgb_col]
+
 
 class AxisLimits(object):
     'container object for the plot axis limits'
@@ -43,13 +46,14 @@ class AxisLimits(object):
         self.ymin = None
         self.ymax = None
 
+
 class ModeColors(Freezable):
     'maps mode names -> colors'
 
     def __init__(self):
         self.init_colors()
 
-        self.mode_to_color = {} # map mode name -> color string
+        self.mode_to_color = {}  # map mode name -> color string
         self.freeze_attrs()
 
     def init_colors(self):
@@ -105,6 +109,7 @@ class ModeColors(Freezable):
         face_col = lighter(edge_col)
 
         return (face_col, edge_col)
+
 
 class DrawnShapes(Freezable):
     'maintains shapes to be drawn'
@@ -250,12 +255,14 @@ class DrawnShapes(Freezable):
             codes = [Path.MOVETO] + [Path.LINETO] * (len(poly_verts) - 2) + [Path.CLOSEPOLY]
             paths.append(Path(poly_verts, codes))
 
+
 class InteractiveState(object):
     'container object for interactive plot state'
 
     def __init__(self):
         self.paused = False
         self.step = False
+
 
 class PlotManager(Freezable):
     'manager object for plotting during or after computation'
@@ -271,23 +278,23 @@ class PlotManager(Freezable):
 
         self.fig = None
         self.axes = None
-        self.actual_limits = None # AxisLimits object
-        self.drawn_limits = None # AxisLimits object
+        self.actual_limits = None  # AxisLimits object
+        self.drawn_limits = None  # AxisLimits object
 
         self.mode_colors = ModeColors()
-        self.shapes = None # instance of DrawnShapes
+        self.shapes = None  # instance of DrawnShapes
         self.interactive = InteractiveState()
 
-        self.drew_first_frame = False # one-time flag
-        self._anim = None # animation object
+        self.drew_first_frame = False  # one-time flag
+        self._anim = None  # animation object
 
         if self.settings.plot_mode == PlotSettings.PLOT_INTERACTIVE or \
            self.settings.plot_mode == PlotSettings.PLOT_VIDEO:
-            self.settings.min_frame_time = 0.0 # for interactive or video plots, draw every frame
+            self.settings.min_frame_time = 0.0  # for interactive or video plots, draw every frame
 
-        self.cur_reachable_polys = 0 # number of polygons currently drawn
-        self.draw_stride = plot_settings.draw_stride # draw every 2nd poly, or every 4th, ect. (if over poly limit)
-        self.draw_cur_step = 0 # the current poly in the step
+        self.cur_reachable_polys = 0  # number of polygons currently drawn
+        self.draw_stride = plot_settings.draw_stride  # draw every 2nd poly, or every 4th, ect. (if over poly limit)
+        self.draw_cur_step = 0  # the current poly in the step
 
         # used to save reachable polys for certain drawing modes (gnuplot, matlab)
         self.reach_poly_data = None
@@ -505,7 +512,7 @@ class PlotManager(Freezable):
                 yield False
 
             # redraw one more (will clear cur_state)
-            #yield False
+            # yield False
 
             Timers.toc("total")
 
@@ -628,7 +635,7 @@ class PlotManager(Freezable):
         filename = self.settings.filename
 
         if filename is None:
-            filename = "video.avi" # mp4 is also possible
+            filename = "video.avi"  # mp4 is also possible
 
         fps = self.settings.video.fps
         codec = self.settings.video.codec
@@ -654,6 +661,7 @@ class PlotManager(Freezable):
 
             print "\nSaving video file failed! Is ffmpeg installed? Can you run 'ffmpeg' in the terminal?"
 
+
 def debug_plot_star(star, col='k-', lw=1):
     '''
     debug function for plotting a star. This calls plt.plot(), so it's up to you
@@ -672,6 +680,8 @@ def debug_plot_star(star, col='k-', lw=1):
 
 # monkey patch function for blitting tick-labels
 # see http://stackoverflow.com/questions/17558096/animated-title-in-matplotlib
+
+
 def _blit_draw(_self, artists, bg_cache):
     'money-patch version of animation._blit_draw'
     # Handles blitted drawing, which renders only the artists given instead

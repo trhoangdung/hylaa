@@ -13,6 +13,7 @@ from hylaa.timerutil import Timers
 from hylaa.containers import HylaaSettings, PlotSettings, HylaaResult
 from hylaa.file_io import write_counter_example
 
+
 class HylaaEngine(object):
     'main computation object. initialize and call run()'
 
@@ -29,12 +30,12 @@ class HylaaEngine(object):
         self.plotman = PlotManager(self, self.settings.plot)
 
         # computation
-        self.cur_star = None # a Star object
+        self.cur_star = None  # a Star object
 
-        self.cur_step_in_mode = None # how much dwell time in current continuous post
-        self.max_steps_remaining = None # bound on num steps left in current mode ; assigned on pop
+        self.cur_step_in_mode = None  # how much dwell time in current continuous post
+        self.max_steps_remaining = None  # bound on num steps left in current mode ; assigned on pop
 
-        self.result = None # a HylaaResult... assigned on run()
+        self.result = None  # a HylaaResult... assigned on run()
 
     def is_finished(self):
         'is the computation finished'
@@ -92,13 +93,13 @@ class HylaaEngine(object):
                     total_steps = star.time_elapse.next_step - 1
                     start_pt = lp_solution[:star.lp_dims]
 
-                    #print ".engine start point from lp = {}".format(start_pt)
+                    # print ".engine start point from lp = {}".format(start_pt)
 
                     if self.cur_star.var_lists is not None:
                         # reconstruct start_pt based on the fixed and non-fixed dims
                         start_pt = self.reconstruct_full_start_pt(start_pt)
 
-                    #print ".engine reconstructed start point = {}".format(start_pt)
+                    # print ".engine reconstructed start point = {}".format(start_pt)
 
                     norm_vec_sparse = self.cur_star.mode.transitions[i].guard_matrix[0]
                     normal_vec = np.array(norm_vec_sparse.toarray(), dtype=float)
@@ -118,13 +119,13 @@ class HylaaEngine(object):
 
                     for step in xrange(total_steps):
                         offset = len(input_vals) - (self.cur_star.inputs * (1 + step))
-                        inputs.append(input_vals[offset:offset+self.cur_star.inputs])
+                        inputs.append(input_vals[offset:offset + self.cur_star.inputs])
 
                     write_counter_example(filename, mode, step_size, total_steps, start_pt, inputs,
                                           normal_vec, normal_val, end_val)
 
                 self.result.safe = False
-                break # no need to keep checking
+                break  # no need to keep checking
 
     def do_step_continuous_post(self):
         '''do a step where it's part of a continuous post'''
@@ -143,13 +144,13 @@ class HylaaEngine(object):
     def do_step(self):
         'do a single step of the computation'
 
-        skipped_plot = False # if we skip the plot, do multiple steps
+        skipped_plot = False  # if we skip the plot, do multiple steps
 
         while True:
             self.do_step_continuous_post()
 
-            if self.settings.plot.plot_mode == PlotSettings.PLOT_NONE or \
-                                    not skipped_plot or self.is_finished():
+            if (self.settings.plot.plot_mode == PlotSettings.PLOT_NONE or
+               not skipped_plot or self.is_finished()):
                 break
 
         if self.is_finished() and self.settings.print_output:

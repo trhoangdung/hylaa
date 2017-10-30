@@ -8,6 +8,7 @@ from scipy.sparse import csr_matrix
 
 from hylaa.util import Freezable
 
+
 def make_constraint_matrix(bounds_list):
     'make a constraints matrix and rhs vector from a list of bounds in each dimension'
 
@@ -24,21 +25,22 @@ def make_constraint_matrix(bounds_list):
         # upper bound
         values.append(1)
         indices.append(dim)
-        indptr.append(2*dim)
+        indptr.append(2 * dim)
         constraint_rhs.append(ub)
 
         # lower bound
         values.append(-1)
         indices.append(dim)
-        indptr.append(2*dim+1)
+        indptr.append(2 * dim + 1)
         constraint_rhs.append(-lb)
 
     indptr.append(len(values))
 
-    init_mat = csr_matrix((values, indices, indptr), shape=(2*dims, dims), dtype=float)
+    init_mat = csr_matrix((values, indices, indptr), shape=(2 * dims, dims), dtype=float)
     init_rhs = np.array(constraint_rhs, dtype=float)
 
     return (init_mat, init_rhs)
+
 
 def make_seperated_constraints(bounds_list):
     '''
@@ -64,19 +66,19 @@ def make_seperated_constraints(bounds_list):
         lb, ub = bounds_list[dim]
         assert lb <= ub, "lower bound ({}) should be less than upper bound ({})".format(lb, ub)
 
-        if abs(lb-ub) < 1e-13:
+        if abs(lb - ub) < 1e-13:
             fixed_dim_tuples.append((dim, lb))
         else:
             # upper bound
             values.append(1)
             indices.append(dim_index)
-            indptr.append(2*dim_index)
+            indptr.append(2 * dim_index)
             constraint_rhs.append(ub)
 
             # lower bound
             values.append(-1)
             indices.append(dim_index)
-            indptr.append(2*dim_index+1)
+            indptr.append(2 * dim_index + 1)
             constraint_rhs.append(-lb)
 
             variable_dim_list.append(dim)
@@ -88,29 +90,30 @@ def make_seperated_constraints(bounds_list):
     # upper bound
     values.append(1)
     indices.append(dim_index)
-    indptr.append(2*dim_index)
+    indptr.append(2 * dim_index)
     constraint_rhs.append(ub)
 
     # lower bound
     values.append(-1)
     indices.append(dim_index)
-    indptr.append(2*dim_index+1)
+    indptr.append(2 * dim_index + 1)
     constraint_rhs.append(-lb)
 
     dim_index = dim_index + 1
 
     indptr.append(len(values))
 
-    init_mat = csr_matrix((values, indices, indptr), shape=(2*dim_index, dim_index), dtype=float)
+    init_mat = csr_matrix((values, indices, indptr), shape=(2 * dim_index, dim_index), dtype=float)
     init_rhs = np.array(constraint_rhs, dtype=float)
 
     return (init_mat, init_rhs, variable_dim_list, fixed_dim_tuples)
+
 
 class HyperRectangle(object):
     'An n-dimensional box'
 
     def __init__(self, dims):
-        self.dims = dims # list of tuples
+        self.dims = dims  # list of tuples
 
         for d in xrange(len(dims)):
             low = dims[d][0]
@@ -179,6 +182,7 @@ class HyperRectangle(object):
 
         return rv
 
+
 class LinearAutomatonMode(Freezable):
     'A single mode of a hybrid automaton'
 
@@ -190,7 +194,7 @@ class LinearAutomatonMode(Freezable):
         self.b_matrix = None
 
         self.parent = parent
-        self.transitions = [] # outgoing transitions
+        self.transitions = []  # outgoing transitions
 
         self.freeze_attrs()
 
@@ -230,6 +234,7 @@ class LinearAutomatonMode(Freezable):
     def __str__(self):
         return '[LinearAutomatonMode: {}]'.format(self.name)
 
+
 class LinearAutomatonTransition(Freezable):
     'A transition of a hybrid automaton'
 
@@ -263,6 +268,7 @@ class LinearAutomatonTransition(Freezable):
 
     def __str__(self):
         return self.from_mode.name + " -> " + self.to_mode.name
+
 
 class LinearHybridAutomaton(Freezable):
     'The hybrid automaton'

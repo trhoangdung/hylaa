@@ -11,6 +11,7 @@ from hylaa.hybrid_automaton import LinearAutomatonMode
 from hylaa.containers import SimulationSettings, PlotSettings
 from hylaa.glpk_interface import LpInstance
 
+
 class GuardOptData(Freezable):
     'Guard optimization data'
 
@@ -55,7 +56,7 @@ class GuardOptData(Freezable):
                 self.input_lpi = LpInstance(self.num_constraints, self.inputs, 0)
                 self.input_lpi.set_init_constraints_csr(star.input_mat_csr, star.input_rhs)
 
-            self.input_history = [] # inputs to apply at each step
+            self.input_history = []  # inputs to apply at each step
             self.input_effects_sum = 0.0
 
         self.freeze_attrs()
@@ -66,7 +67,7 @@ class GuardOptData(Freezable):
         cur_time_mat = self.star.time_elapse.cur_time_elapse_mat
         row = self.key_dir_offset
 
-        self.noinput_lpi.update_time_elapse_matrix(cur_time_mat[row:row+1])
+        self.noinput_lpi.update_time_elapse_matrix(cur_time_mat[row:row + 1])
         self.noinput_lpi.commit_cur_time_rows()
 
         noinput_result = np.zeros((self.star.lp_dims + 1), dtype=float)
@@ -80,7 +81,7 @@ class GuardOptData(Freezable):
             scale = 1000
             input_effects_mat = scale * self.star.time_elapse.cur_input_effects_matrix
 
-            self.input_lpi.update_time_elapse_matrix(input_effects_mat[row:row+1])
+            self.input_lpi.update_time_elapse_matrix(input_effects_mat[row:row + 1])
             self.input_lpi.commit_cur_time_rows()
 
             result = np.zeros((self.inputs + 1,), dtype=float)
