@@ -57,6 +57,78 @@ class index_2_daes(object):
 
             return self.E, self.A, self.B, self.C
 
+        def stoke_equation_2d(self, length, numOfMeshPoint):
+            'A index-2 large scale DAE, stoke quation in a square region, demensions = (numOfMeshPoint)^2'
+
+            # This benchmark is from the paper:
+            # Balanced Truncation Model Reduction for Systems in Descriptor Form
+
+            # Boundary condition : at the boundary we have v = 0, p = 1 (Dirichlet boundary conditions)
+            # More boundary conditions can be found in the paper: Various boundary conditions for
+            # Navier-stokes equation in bounded Lipschitz domains
+
+            isinstance(numOfMeshPoint, int)
+            isinstance(length, float)
+            assert numOfMeshPoint > 2, 'number of mesh points shoubld be large than 2'
+            assert length > 0, 'length of square should be large than 0'
+
+            # For simplicity, we use the same number of mesh point for velocity and pressure: n_v = n_p = numOfMeshPoint
+            n = numOfMeshPoint
+            num_var = n**2    # number of dimension
+            h = length / (n + 1)    # discretization step
+
+            k = 1 / h**2
+            l = 1 / h
+
+            # handle dynamic part: dv/dt = div^2 v - div p + f
+
+            V = lil_matrix((num_var, num_var), dtype=float)    # matrix corresponds to velocity v
+            P = lil_matrix((num_var, num_var), dtype=float)    # matrix corresponds to pressure p
+            P_boundary = lil_matrix((num_var, 1), dtype=float)    # matrix corresponds to the pressure boundary condition
+
+            # fill matrices: V, P, P_boundary
+
+            for i in xrange(0, num_var):
+                V[i, i] = -4    # filling diagonal
+                P[i, i] = -2    # filling diagonal
+
+                x_pos = i % n     # x-position corresponding to i-th state variable
+                y_pos = int((i - x_pos) / n)
+                print "the {}th velocity (or pressure) variable is velocity (or pressure) at the mesh point ({},{})".format(i, x_pos, y_pos)
+
+                # fill along x - axis
+                if x_pos - 1 >= 0:
+                    V[i, i - 1] = 1
+                    P[i, i - 1] = 1
+                else:
+                    P_boundary[i, 0] = 1
+
+                if x_pos + 1 <= n - 1:
+                    V[i, i + 1] = 1
+
+                # fill along y-axis
+                if y_pos - 1 >= 0:
+                    V[i, (y_pos - 1) * n + x_pos] = 1
+                    P[i, (y_pos - 1) * n + x_pos] = 1
+                else:
+                    P_boundary[i, 0] = 1
+
+                if y_pos + 1 <= n - 1:
+                    V[i, (y_pos + 1) * n + x_pos] = 1
+
+                matrix_V = V.multiply(k).tocsr()
+                matrix_P = P.multiply(l).tocsr()
+                matrix_P_boundary = P_boundary.multiply(l).tocsr()
+
+            # handle algebraic constraint : div v = 0
+            # The fact is that
+
+
+            # constructing DAE system
+            # dynamic: dv/dt = matrix_V * v + matrix_ P * p + matrix_P_boundary + f
+
+            return matrix_V, matrix_P, matrix_P_boundary
+
 
 class index_3_daes(object):
     'some index-3 DAE benchmarks'
@@ -153,10 +225,10 @@ class index_3_daes(object):
         n = 2 * g + 1    # system's dimension
 
         # Assume we have a uniformed damped mass-spring
-        # system's parameters : (slightly different from the paper)
+        # system's parameters :
         # m1 = m2 = ... = mg = 100
-        # k1 = k2 = ... = k_(g-1) = 2 = h1 = h3 = ... = h_(g-1) = h_g
-        # d1 = d2 = ... = d_(g-1) = 5 = l1 = l2 = l3 = ... l_(g-1) = l_g = 5
+        # k1 = k2 = ... = k_(g-1)  = h2 = h3 = ... = h_(g-1) = k, h1 = hg = 2 * k
+        # d1 = d2 = ... = d_(g-1) = l2 = l3 = ... l_(g-1) = l_g = d, l1 = lg = 2 * d
         m = 100    # mass
         k = 2      # stiffness
         d = 5      # damping
@@ -165,11 +237,11 @@ class index_3_daes(object):
         K = lil_matrix((g, g), dtype=float)
         D = lil_matrix((g, g), dtype=float)
         for i in xrange(0, g):
-            K[i, i] = -2 * k
-            D[i, i] = -2 * d
+            K[i, i] = -3 * k
+            D[i, i] = -3 * d
             if i > 0:
-                K[i - 1, i] = k
-                D[i - 1, i] = d
+                K[i, i - 1] = 2 * k
+                D[i, i - 1] = 2 * d
             if i < g - 2:
                 K[i, i + 1] = k
                 D[i, i + 1] = d
@@ -247,6 +319,11 @@ if __name__ == '__main__':
     print "\nRL network:"
     print "\nE = {} \nA ={} \nB={} \nC={}".format(E, A, B, C)
 
+    # Stoke equation 2d
+    V, P, P_boundary = bm.stoke_equation_2d(1.0, 3)
+    print "\n2-dimensional stoke equation:"
+    print "\nV = {} \nP = {} \n P_boundary = {}".format(V.todense(), P.todense(), P_boundary.todense())
+
     bm = index_3_daes()
 
     # Car Pendulum benchmark
@@ -255,7 +332,7 @@ if __name__ == '__main__':
     print "\nE = {} \nA ={} \nB={} \nC={}".format(E, A, B, C)
 
     # Damped mass-spring Systems
-    E, A, B, C = bm.damped_mass_spring(10)
+    E, A, B, C = bm.damped_mass_spring(3)
     print "\n Damped mass-spring system:"
     print "\nE = {} \nA ={} \nB={} \nC={}".format(E.todense(),
                                                   A.todense(), B.todense(), C.todense())
