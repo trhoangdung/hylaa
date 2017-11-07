@@ -57,77 +57,102 @@ class index_2_daes(object):
 
             return self.E, self.A, self.B, self.C
 
-        def stoke_equation_2d(self, length, numOfMeshPoint):
-            'A index-2 large scale DAE, stoke quation in a square region, demensions = (numOfMeshPoint)^2'
+        def stoke_equation_2d(self, length, numOfCell):
+            'A index-2 large scale DAE, stoke quation in a square region'
 
             # This benchmark is from the paper:
             # Balanced Truncation Model Reduction for Systems in Descriptor Form
 
-            # Boundary condition : at the boundary we have v = 0, p = 1 (Dirichlet boundary conditions)
+            # Boundary condition : at the boundary we have v( 0, y, t) = 0, p (0, y, t) = 1 (Dirichlet boundary conditions)
             # More boundary conditions can be found in the paper: Various boundary conditions for
             # Navier-stokes equation in bounded Lipschitz domains
 
-            isinstance(numOfMeshPoint, int)
+            isinstance(numOfCell, int)
             isinstance(length, float)
-            assert numOfMeshPoint > 2, 'number of mesh points shoubld be large than 2'
+            assert numOfCell > 2, 'number of mesh points shoubld be large than 2'
             assert length > 0, 'length of square should be large than 0'
 
             # For simplicity, we use the same number of mesh point for velocity and pressure: n_v = n_p = numOfMeshPoint
-            n = numOfMeshPoint
-            num_var = n**2    # number of dimension
+            n = numOfCell
             h = length / (n + 1)    # discretization step
 
             k = 1 / h**2
             l = 1 / h
 
             # handle dynamic part: dv/dt = div^2 v - div p + f
+            # using MAC scheme
 
-            V = lil_matrix((num_var, num_var), dtype=float)    # matrix corresponds to velocity v
-            P = lil_matrix((num_var, num_var), dtype=float)    # matrix corresponds to pressure p
-            P_boundary = lil_matrix((num_var, 1), dtype=float)    # matrix corresponds to the pressure boundary condition
+            num_var = n * (n + 1)    # number of variables (points) along one x/y - axis
 
-            # fill matrices: V, P, P_boundary
+            V_x = lil_matrix((num_var, num_var), dtype=float)    # matrix corresponds to velocity v_x
+            V_y = lil_matrix((num_var, num_var), dtype=float)    # matrix corresponds to velocity v_y
 
+            # filling V_x
             for i in xrange(0, num_var):
-                V[i, i] = -4    # filling diagonal
-                P[i, i] = -2    # filling diagonal
+                y_pos = int(math.ceil(i / n))    # y-position of i-th state variable
+                x_pos = i - y_pos * n    # x_position of i-th state variable
+                print "\nV_x: the {}th variable is the velocity of the flow at the point ({}, {})".format(i, x_pos, y_pos)
+                V_x[i, i] = -4
 
-                x_pos = i % n     # x-position corresponding to i-th state variable
-                y_pos = int((i - x_pos) / n)
-                print "the {}th velocity (or pressure) variable is velocity (or pressure) at the mesh point ({},{})".format(i, x_pos, y_pos)
-
-                # fill along x - axis
                 if x_pos - 1 >= 0:
-                    V[i, i - 1] = 1
-                    P[i, i - 1] = 1
-                else:
-                    P_boundary[i, 0] = 1
+                    V_x[i, i - 1] = 1    # boundary condition at x = 0, v_x = 1
 
                 if x_pos + 1 <= n - 1:
-                    V[i, i + 1] = 1
+                    V_x[i, i + 1] = 1    # boundary condition at x = 1, v_x = 0
 
-                # fill along y-axis
                 if y_pos - 1 >= 0:
-                    V[i, (y_pos - 1) * n + x_pos] = 1
-                    P[i, (y_pos - 1) * n + x_pos] = 1
+                    V_x[i, (y_pos - 1) * n + x_pos] = 1
                 else:
-                    P_boundary[i, 0] = 1
+                    V_x[i, i] = V_x[i, i] - 1    # extrapolation at y = 0
+
+                if y_pos + 1 <= n:
+                    V_x[i, (y_pos + 1) * n + x_pos] = 1
+                else:
+                    V_x[i, i] = V_x[i, i] - 1    # extrapolation at y = 1
+
+            # filling V_y
+
+            for i in xrange(0, num_var):
+                y_pos = int(math.ceil(i / (n + 1)))    # y-position of i-th state variable
+                x_pos = i - y_pos * (n + 1)    # x-position of i-th state variable
+                print "\nV_y: the {}th variable is the velocity of the flow at the point ({}, {})".format(i, x_pos, y_pos)
+                V_y[i, i] = -4
+
+                if x_pos - 1 >= 0:
+                    V_y[i, i - 1] = 1    # boundary condition at x = 0, v_y = 0
+
+                if x_pos + 1 <= n:
+                    V_y[i, i + 1] = 1    # boundary condition at x = 1, v_y = 0
+
+                if y_pos - 1 >= 0:
+                    V_y[i, (y_pos - 1) * (n + 1) + x_pos] = 1
+                else:
+                    V_y[i, i] = V_y[i, i] - 1    # extrapolation at y = 0
 
                 if y_pos + 1 <= n - 1:
-                    V[i, (y_pos + 1) * n + x_pos] = 1
+                    V_y[i, (y_pos + 1) * (n + 1) + x_pos] = 1
+                else:
+                    V_y[i, i] = V_y[i, i] - 1    # extrapolation at y = 1
 
-                matrix_V = V.multiply(k).tocsr()
-                matrix_P = P.multiply(l).tocsr()
-                matrix_P_boundary = P_boundary.multiply(l).tocsr()
+            num_var = n * n
+            P_x = lil_matrix((num_var, num_var), dtype=float)    # matrix corresponds to pressure px
+            P_y = lil_matrix((num_var, num_var), dtype=float)    # matrix corresponds to pressure py
 
-            # handle algebraic constraint : div v = 0
-            # The fact is that
+            # filling P_x
+            for i in xrange(0, num_var):
+                y_pos = int(math.ceil(i / n))    # y-position of i-th pressure variable
+                x_pos = i - y_pos * n            # x-position of i-th pressure variable
 
+                P_x[i, i] = 1
+                P_y[i, i] = 1
 
-            # constructing DAE system
-            # dynamic: dv/dt = matrix_V * v + matrix_ P * p + matrix_P_boundary + f
+                if x_pos - 1 >= 0:    # pressure condition at x = 0, p = 0
+                    P_y[i, i - 1] = -1
 
-            return matrix_V, matrix_P, matrix_P_boundary
+                if y_pos - 1 >= 0:    # pressure condition at y = 0, p = 0
+                    P_x[i, (y_pos - 1) * n + x_pos] = -1
+
+            return V_x, V_y, P_x, P_y
 
 
 class index_3_daes(object):
@@ -320,9 +345,12 @@ if __name__ == '__main__':
     print "\nE = {} \nA ={} \nB={} \nC={}".format(E, A, B, C)
 
     # Stoke equation 2d
-    V, P, P_boundary = bm.stoke_equation_2d(1.0, 3)
+    V_x, V_y, P_x, P_y = bm.stoke_equation_2d(1.0, 3)
     print "\n2-dimensional stoke equation:"
-    print "\nV = {} \nP = {} \n P_boundary = {}".format(V.todense(), P.todense(), P_boundary.todense())
+    print "\nV_x = {}, \nV_y = {}, \nP_x = {}, \nP_y = {}".format(V_x.todense(), V_y.todense(),
+                                                                  P_x.todense(), P_y.todense())
+
+    print "\ntranspose_P_y = {}".format(np.transpose(P_y.todense()))
 
     bm = index_3_daes()
 
