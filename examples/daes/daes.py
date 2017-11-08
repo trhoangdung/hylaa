@@ -6,7 +6,7 @@ Dung Tran Nov-2017
 
 import math
 import numpy as np
-from scipy.sparse import lil_matrix, csr_matrix
+from scipy.sparse import lil_matrix, csr_matrix, eye
 from scipy.sparse import hstack, vstack
 
 
@@ -57,23 +57,18 @@ class index_2_daes(object):
 
             return self.E, self.A, self.B, self.C
 
-        def stoke_equation_2d(self, length, numOfCell):
+        def stoke_equation_2d(self, length, numOfCells):
             'A index-2 large scale DAE, stoke quation in a square region'
 
             # This benchmark is from the paper:
             # Balanced Truncation Model Reduction for Systems in Descriptor Form
 
-            # Boundary condition : at the boundary we have v( 0, y, t) = 0, p (0, y, t) = 1 (Dirichlet boundary conditions)
-            # More boundary conditions can be found in the paper: Various boundary conditions for
-            # Navier-stokes equation in bounded Lipschitz domains
-
-            isinstance(numOfCell, int)
+            isinstance(numOfCells, int)
             isinstance(length, float)
-            assert numOfCell > 2, 'number of mesh points shoubld be large than 2'
+            assert numOfCells > 1, 'number of mesh points shoubld be >= 2'
             assert length > 0, 'length of square should be large than 0'
 
-            # For simplicity, we use the same number of mesh point for velocity and pressure: n_v = n_p = numOfMeshPoint
-            n = numOfCell
+            n = numOfCells
             h = length / (n + 1)    # discretization step
 
             k = 1 / h**2
@@ -81,21 +76,46 @@ class index_2_daes(object):
 
             # handle dynamic part: dv/dt = div^2 v - div p + f
             # using MAC scheme
+            ##################################################################
+            #    v = v_x + v_y (velocity vector)
+            #    dv_x/dt = div^2 (v_x) - div_x (p) + f_x
+            #    dv_y/dt = div^2 (v_y) - div_y (p) + f_y
+            #    div_x(v_x) + div_y(v_y) = 0
+            #
+            #    state space format:
+            #    dv_x/dt = matrix_V_x * v_x + matrix_P_x * p + f_x
+            #    dv_y/dt = matrix_V_y * v_y + matrix_P_y * p + f_y
+            #    transpose(matrix_P_x)* v_x + transpose(matrix_P_y) * v_y = 0
+            #
+            #    Let x = [v_x v_y p]^T we have:
+            #    E * dx/dt = A * x + B * u(t)
+            #    E = [I 0; 0 0]; A = [V_x 0 P_x; 0 V_y P_y; P_x^T P_y^T 0]
+            ##################################################################
+
+            # Boundary conditions : at the boundary we have v( 0, y, t) = 0, v(1, y, t) = 0 (Dirichlet boundary conditions)
+            # condition for the force f: x = 0, f_x(0, y, t) = 1, f_y(0, y, t) = 1; x > 0, f = 0
+            # More boundary conditions can be found in the paper: Various boundary conditions for
+            # Navier-stokes equation in bounded Lipschitz domains
 
             num_var = n * (n + 1)    # number of variables (points) along one x/y - axis
 
             V_x = lil_matrix((num_var, num_var), dtype=float)    # matrix corresponds to velocity v_x
             V_y = lil_matrix((num_var, num_var), dtype=float)    # matrix corresponds to velocity v_y
+            B_x = lil_matrix((num_var, 1), dtype=float)    # matrix corresponds to the force fx
+            B_y = lil_matrix((num_var, 1), dtype=float)    # matrix corresponds to the force fy
 
-            # filling V_x
+            # filling V_x, B_x
             for i in xrange(0, num_var):
                 y_pos = int(math.ceil(i / n))    # y-position of i-th state variable
                 x_pos = i - y_pos * n    # x_position of i-th state variable
                 print "\nV_x: the {}th variable is the velocity of the flow at the point ({}, {})".format(i, x_pos, y_pos)
                 V_x[i, i] = -4
 
+                if y_pos == 0:
+                    B_x[i, 0] = 1    # input force fx at boundary x = 0
+
                 if x_pos - 1 >= 0:
-                    V_x[i, i - 1] = 1    # boundary condition at x = 0, v_x = 1
+                    V_x[i, i - 1] = 1    # boundary condition at x = 0, v_x = 0
 
                 if x_pos + 1 <= n - 1:
                     V_x[i, i + 1] = 1    # boundary condition at x = 1, v_x = 0
@@ -118,6 +138,9 @@ class index_2_daes(object):
                 print "\nV_y: the {}th variable is the velocity of the flow at the point ({}, {})".format(i, x_pos, y_pos)
                 V_y[i, i] = -4
 
+                if y_pos == 0:
+                    B_y[i, 0] = 1    # input force fy at boudary x = 0
+
                 if x_pos - 1 >= 0:
                     V_y[i, i - 1] = 1    # boundary condition at x = 0, v_y = 0
 
@@ -138,9 +161,60 @@ class index_2_daes(object):
             P_y = lil_matrix((n * (n + 1), n * n), dtype=float)    # matrix corresponds to pressure py
 
             # filling P_x
+            for i in xrange(0, num_var):
+                y_pos = int(math.ceil(i / n))    # y-position of i-th state variable
+                x_pos = i - y_pos * n    # x_position of i-th state variable
 
+                if i <= n * n - 1:
+                    P_x[i, i] = 1
 
-            return V_x, V_y, P_x, P_y
+                if y_pos - 1 >= 0:
+                    P_x[i, (y_pos - 1) * n + x_pos] = -1
+
+            # filling P_y
+            for i in xrange(0, num_var):
+                y_pos = int(math.ceil(i / (n + 1)))    # y-position of i-th state variable
+                x_pos = i - y_pos * (n + 1)    # x-position of i-th state variable
+
+                if x_pos <= n - 1:
+                    j = y_pos * n + x_pos    # the j-th correpsonding pressure variable
+                    P_y[i, j] = 1
+                    if x_pos - 1 >= 0:
+                        P_y[i, j - 1] = -1
+                else:
+                    P_y[i, y_pos * n + x_pos - 1] = -1
+
+            V_x.tocsr()
+            V_y.tocsr()
+            P_x.tocsr()
+            P_y.tocsr()
+            matrix_V_x = V_x.multiply(k)    # scale matrix with k = 1/h**2
+            matrix_V_y = V_y.multiply(k)
+            matrix_P_x = P_x.multiply(l)    # scale matrix with l = 1/h
+            matrix_P_y = P_y.multiply(l)
+
+            # constructing matrix E, A, B, C
+            identity_mat = eye(2 * num_var, dtype=float, format='csr')
+            zero_mat = csr_matrix((2 * num_var, n * n), dtype=float)
+            E1 = hstack([identity_mat, zero_mat])
+            E2 = hstack([csr_matrix.transpose(zero_mat), csr_matrix((n * n, n * n), dtype=float)])
+            E = vstack([E1, E2])
+            self.E = E.tocsr()
+
+            V1 = hstack([matrix_V_x, csr_matrix((num_var, num_var), dtype=float)])
+            V2 = hstack([csr_matrix((num_var, num_var), dtype=float), matrix_V_y])
+            matrix_V = vstack([V1, V2])
+            matrix_P = vstack([matrix_P_x, matrix_P_y])
+            A1 = hstack([matrix_V, matrix_P])
+            A2 = hstack([csr_matrix.transpose(matrix_P.tocsr()), csr_matrix((n * n, n * n), dtype=float)])
+            A = vstack([A1, A2])
+            self.A = A.tocsr()
+
+            zero_vec = csr_matrix((n * n, 1), dtype=float)
+            B = vstack([B_x, B_y, zero_vec])
+            self.B = B.tocsr()
+
+            return self.E, self.A, self.B
 
 
 class index_3_daes(object):
@@ -319,36 +393,49 @@ class index_3_daes(object):
 
 if __name__ == '__main__':
 
+    # index 2 benchmarks
     bm = index_2_daes()
 
     # two interconnected rotating masses
 
     E, A, B, C = bm.two_interconnected_rotating_masses(1, 1)
-    print "\nTwo interconnected rotating masses benchmark:"
+    print "\n########################################################"
+    print "\nTWO INTERCONNECTED ROTATING MASSES:"
+    print "\ndimensions: {}".format(E.shape[0])
     print "\nE = {} \nA ={} \nB={} \nC={}".format(E, A, B, C)
 
     # RL network
     E, A, B, C = bm.RL_network(1, 1)
+    print "\n########################################################"
     print "\nRL network:"
+    print "\ndimensions: {}".format(E.shape[0])
     print "\nE = {} \nA ={} \nB={} \nC={}".format(E, A, B, C)
 
     # Stoke equation 2d
-    V_x, V_y, P_x, P_y = bm.stoke_equation_2d(1.0, 3)
-    print "\n2-dimensional stoke equation:"
-    print "\nV_x = {}, \nV_y = {}, \nP_x = {}, \nP_y = {}".format(V_x.todense(), V_y.todense(),
-                                                                  P_x.todense(), P_y.todense())
+    numOfCells = 2
+    length = 1.0
+    E, A, B = bm.stoke_equation_2d(length, numOfCells)
+    print "\n########################################################"
+    print "\n2-DIMENSIONAL STOKE EQUATION:"
+    print"\nnumber of cells in one direction = {}, \nsystem's dimension = {}".format(numOfCells, A.shape[0])
+    print "\nE = {}, \nA = {}, \nB = {}".format(E.todense(), A.todense(), B.todense())
 
-    print "\ntranspose_P_y = {}".format(np.transpose(P_y.todense()))
-
+    # index 3 benchmarks
     bm = index_3_daes()
 
     # Car Pendulum benchmark
     E, A, B, C = bm.car_pendulum(2, 1, 1)
-    print "\nCar pendulum benchmark:"
+    print "\n########################################################"
+    print "\nCAR PENDULUM:"
+    print "\ndimensions: {}".format(E.shape[0])
     print "\nE = {} \nA ={} \nB={} \nC={}".format(E, A, B, C)
 
     # Damped mass-spring Systems
-    E, A, B, C = bm.damped_mass_spring(3)
-    print "\n Damped mass-spring system:"
+    numOfMasses = 3
+    E, A, B, C = bm.damped_mass_spring(numOfMasses)
+    print "\n########################################################"
+    print "\nDAMPED MASS-SPRING SYSTEM:"
+    print "\nnumber of masses: {}".format(numOfMasses)
+    print "\ndimensions: {}".format(E.shape[0])
     print "\nE = {} \nA ={} \nB={} \nC={}".format(E.todense(),
                                                   A.todense(), B.todense(), C.todense())
