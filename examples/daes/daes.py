@@ -134,23 +134,11 @@ class index_2_daes(object):
                 else:
                     V_y[i, i] = V_y[i, i] - 1    # extrapolation at y = 1
 
-            num_var = n * n
-            P_x = lil_matrix((num_var, num_var), dtype=float)    # matrix corresponds to pressure px
-            P_y = lil_matrix((num_var, num_var), dtype=float)    # matrix corresponds to pressure py
+            P_x = lil_matrix((n * (n + 1), n * n), dtype=float)    # matrix corresponds to pressure px
+            P_y = lil_matrix((n * (n + 1), n * n), dtype=float)    # matrix corresponds to pressure py
 
             # filling P_x
-            for i in xrange(0, num_var):
-                y_pos = int(math.ceil(i / n))    # y-position of i-th pressure variable
-                x_pos = i - y_pos * n            # x-position of i-th pressure variable
 
-                P_x[i, i] = 1
-                P_y[i, i] = 1
-
-                if x_pos - 1 >= 0:    # pressure condition at x = 0, p = 0
-                    P_y[i, i - 1] = -1
-
-                if y_pos - 1 >= 0:    # pressure condition at y = 0, p = 0
-                    P_x[i, (y_pos - 1) * n + x_pos] = -1
 
             return V_x, V_y, P_x, P_y
 
