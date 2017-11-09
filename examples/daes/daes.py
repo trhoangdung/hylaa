@@ -62,6 +62,7 @@ class index_2_daes(object):
 
             # This benchmark is from the paper:
             # Balanced Truncation Model Reduction for Systems in Descriptor Form
+            # system's dimension = 3n^2 + 2n, n = numOfCells
 
             isinstance(numOfCells, int)
             isinstance(length, float)
@@ -214,7 +215,28 @@ class index_2_daes(object):
             B = vstack([B_x, B_y, zero_vec])
             self.B = B.tocsr()
 
-            return self.E, self.A, self.B
+            # we are interested in the velocity v_x and v_y of the middle point of the middle cell
+
+            centre = int(math.ceil((n - 1) / 2))
+            vx1_index = centre * n + centre
+            vx2_index = (centre + 1) * n + centre
+            Cx = lil_matrix((1, num_var), dtype=float)
+            Cx[0, vx1_index] = 0.5
+            Cx[0, vx2_index] = 0.5
+
+            vy1_index = (centre + 1) * n + centre
+            vy2_index = (centre + 1) * n + centre + 1
+            Cy = lil_matrix((1, num_var), dtype=float)
+            Cy[0, vy1_index] = 0.5
+            Cy[0, vy2_index] = 0.5
+            zero_mat2 = csr_matrix((1, num_var), dtype=float)
+            zero_mat3 = csr_matrix((1, n * n), dtype=float)
+            C1 = hstack([Cx, zero_mat2, zero_mat3])
+            C2 = hstack([zero_mat2, Cy, zero_mat3])
+            C = vstack([C1, C2])
+            self.C = C.tocsr()
+
+            return self.E, self.A, self.B, self.C
 
 
 class index_3_daes(object):
@@ -412,13 +434,13 @@ if __name__ == '__main__':
     print "\nE = {} \nA ={} \nB={} \nC={}".format(E, A, B, C)
 
     # Stoke equation 2d
-    numOfCells = 2
+    numOfCells = 3
     length = 1.0
-    E, A, B = bm.stoke_equation_2d(length, numOfCells)
+    E, A, B, C = bm.stoke_equation_2d(length, numOfCells)
     print "\n########################################################"
     print "\n2-DIMENSIONAL STOKE EQUATION:"
     print"\nnumber of cells in one direction = {}, \nsystem's dimension = {}".format(numOfCells, A.shape[0])
-    print "\nE = {}, \nA = {}, \nB = {}".format(E.todense(), A.todense(), B.todense())
+    print "\nE = {}, \nA = {}, \nB = {}, \nC = {}".format(E.todense(), A.todense(), B.todense(), C.todense())
 
     # index 3 benchmarks
     bm = index_3_daes()
